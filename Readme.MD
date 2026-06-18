@@ -37,7 +37,7 @@ Output filenames follow the OBDX naming spec: `{PREFIX}_{PARTYID}_{DD.MM.YYYY}{H
 - **Backend** — Django 4.x, Python 3.10+
 - **Data processing** — pandas, openpyxl
 - **Frontend** — Bootstrap 5, DataTables, Chart.js, SheetJS (client-side Excel reading), Font Awesome
-- **Database** — PostgreSQL recommended; SQLite works for development
+- **Database** — MySQL (via WAMP on Windows) or PostgreSQL; SQLite works for quick local development
 
 ---
 
@@ -62,21 +62,133 @@ templates/
 
 ## Setup
 
-### 1. Clone the repository
+Two paths are documented: **WAMP + MySQL** (Windows local development) and **standard** (Linux/macOS or any environment with PostgreSQL/SQLite).
+
+---
+
+### Option A — WAMP + MySQL (Windows)
+
+#### 1. Install WAMP and start services
+
+Download and install [WampServer](https://www.wampserver.com/en/). Start it and confirm the tray icon turns **green** (Apache + MySQL both running).
+
+#### 2. Create the database
+
+Open **phpMyAdmin** (`http://localhost/phpmyadmin`) and run:
+
+```sql
+CREATE DATABASE paymenthub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'paymenthub_user'@'localhost' IDENTIFIED BY 'yourpassword';
+GRANT ALL PRIVILEGES ON paymenthub.* TO 'paymenthub_user'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+#### 3. Install the MySQL Python driver
+
+```bash
+pip install mysqlclient
+```
+
+> If `mysqlclient` fails to build on Windows, use `pymysql` instead:
+> ```bash
+> pip install pymysql
+> ```
+> Then add this to the top of your `settings.py`:
+> ```python
+> import pymysql
+> pymysql.install_as_MySQLdb()
+> ```
+
+#### 4. Clone the repository
 
 ```bash
 git clone https://github.com/your-username/payment-hub.git
 cd payment-hub
 ```
 
-### 2. Create and activate a virtual environment
+#### 5. Create and activate a virtual environment
 
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+#### 6. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+#### 7. Configure settings
+
+Copy `.env.example` to `.env` and set:
+
+```env
+SECRET_KEY=your-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+DB_ENGINE=django.db.backends.mysql
+DB_NAME=paymenthub
+DB_USER=paymenthub_user
+DB_PASSWORD=yourpassword
+DB_HOST=localhost
+DB_PORT=3306
+```
+
+Your `settings.py` `DATABASES` block should read from these env vars:
+
+```python
+DATABASES = {
+    "default": {
+        "ENGINE":   os.environ.get("DB_ENGINE", "django.db.backends.sqlite3"),
+        "NAME":     os.environ.get("DB_NAME", BASE_DIR / "db.sqlite3"),
+        "USER":     os.environ.get("DB_USER", ""),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST":     os.environ.get("DB_HOST", ""),
+        "PORT":     os.environ.get("DB_PORT", ""),
+    }
+}
+```
+
+#### 8. Run migrations
+
+```bash
+python manage.py migrate
+```
+
+#### 9. Create a superuser
+
+```bash
+python manage.py createsuperuser
+```
+
+#### 10. Run the development server
+
+```bash
+python manage.py runserver
+```
+
+The app will be available at `http://localhost:8000`. MySQL is served by WAMP on port 3306 as normal.
+
+---
+
+### Option B — Standard (Linux / macOS / PostgreSQL)
+
+#### 1. Clone the repository
+
+```bash
+git clone https://github.com/your-username/payment-hub.git
+cd payment-hub
+```
+
+#### 2. Create and activate a virtual environment
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+#### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -88,39 +200,34 @@ The app requires at minimum:
 django
 pandas
 openpyxl
-xlrd          # for .xls support
+xlrd
+mysqlclient   # if using MySQL
+psycopg2-binary  # if using PostgreSQL
 ```
 
-### 4. Configure settings
+#### 4. Configure settings
 
-Copy `.env.example` to `.env` and set:
+Copy `.env.example` to `.env` and set your database credentials (see the WAMP example above for the env var names — same keys, different values).
 
-```env
-SECRET_KEY=your-secret-key
-DEBUG=False
-ALLOWED_HOSTS=yourdomain.com
-DATABASE_URL=postgres://user:password@localhost:5432/paymenthub
-```
-
-### 5. Run migrations
+#### 5. Run migrations
 
 ```bash
 python manage.py migrate
 ```
 
-### 6. Create a superuser
+#### 6. Create a superuser
 
 ```bash
 python manage.py createsuperuser
 ```
 
-### 7. Collect static files (production)
+#### 7. Collect static files (production)
 
 ```bash
 python manage.py collectstatic
 ```
 
-### 8. Run the development server
+#### 8. Run the development server
 
 ```bash
 python manage.py runserver
