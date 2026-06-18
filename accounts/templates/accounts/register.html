@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — Payment Processing System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: #0f1b2d;
+        }
+
+        .auth-left {
+            width: 420px;
+            background: linear-gradient(160deg, #0f1b2d 0%, #1e3a5f 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 48px;
+            flex-shrink: 0;
+        }
+
+        .brand-icon {
+            width: 52px; height: 52px;
+            background: #3b82f6;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; color: white;
+            margin-bottom: 28px;
+        }
+
+        .auth-left h1 { font-size: 28px; font-weight: 700; color: white; margin-bottom: 12px; }
+        .auth-left p  { font-size: 14px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+
+        .auth-right {
+            flex: 1;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 32px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 16px;
+            padding: 36px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+        }
+
+        .auth-card h2 { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+        .auth-card .sub { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+        .form-label { font-size: 12.5px; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
+
+        .form-control {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13.5px;
+            padding: 10px 12px;
+            color: #1e293b;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .form-control:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+            outline: none;
+        }
+
+        .field-error { font-size: 12px; color: #dc2626; margin-top: 4px; }
+        .field-hint  { font-size: 11.5px; color: #94a3b8; margin-top: 4px; }
+
+        .btn-register {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 11px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-top: 6px;
+        }
+
+        .btn-register:hover { background: #2563eb; box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+
+        .auth-footer { text-align: center; margin-top: 20px; font-size: 13px; color: #64748b; }
+        .auth-footer a { color: #3b82f6; font-weight: 600; text-decoration: none; }
+
+        @media (max-width: 768px) { .auth-left { display: none; } }
+    </style>
+</head>
+<body>
+
+    <div class="auth-left">
+        <div class="brand-icon"><i class="fas fa-landmark"></i></div>
+        <h1>Create your account</h1>
+        <p>Join the Payment Processing System. Your uploads are private and secure — only you can see your files.</p>
+    </div>
+
+    <div class="auth-right">
+        <div class="auth-card">
+            <h2>Create account</h2>
+            <p class="sub">Fill in the details below to get started</p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                    <div class="field-error">{{ form.username.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                    <div class="field-error">{{ form.email.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}
+                    <div class="field-error">{{ form.password1.errors|join:", " }}</div>
+                    {% else %}
+                    <div class="field-hint">At least 8 characters, not too common.</div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Confirm Password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}
+                    <div class="field-error">{{ form.password2.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn-register">
+                    <i class="fas fa-user-plus me-2"></i>Create Account
+                </button>
+            </form>
+
+            <p class="auth-footer">
+                Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>

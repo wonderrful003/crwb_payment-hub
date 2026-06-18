@@ -1,0 +1,987 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load dict_extras %}
+
+{% block title %}Dashboard - Payment Processing{% endblock %}
+
+{% block content %}
+
+<!-- ════════════════════════════════════════
+     PANEL 1: DASHBOARD
+════════════════════════════════════════ -->
+<div class="panel active" id="panel-dashboard">
+
+    <!-- Stat cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card blue">
+                <div class="stat-label">Total Jobs</div>
+                <div class="stat-value" id="stat-total-jobs">{{ stats.total_jobs }}</div>
+                <div class="stat-meta">All time uploads</div>
+                <i class="fas fa-chart-bar stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card green">
+                <div class="stat-label">Successful</div>
+                <div class="stat-value" id="stat-successful">{{ stats.successful }}</div>
+                <div class="stat-meta">Files converted</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card red">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" id="stat-failed">{{ stats.failed }}</div>
+                <div class="stat-meta">Processing errors</div>
+                <i class="fas fa-times-circle stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card amber">
+                <div class="stat-label">Records Processed</div>
+                <div class="stat-value" id="stat-total-processed">{{ stats.total_processed }}</div>
+                <div class="stat-meta">Total rows converted</div>
+                <i class="fas fa-database stat-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Recent jobs table -->
+    <div class="card">
+        <div class="card-header-custom">
+            <h5><i class="fas fa-clock me-2" style="color:var(--accent)"></i>Recent Jobs</h5>
+            <button class="btn-primary-custom" onclick="showPanel('history')" style="padding:6px 14px;font-size:12px">
+                View All <i class="fas fa-arrow-right ms-1"></i>
+            </button>
+        </div>
+        <div style="overflow-x:auto">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Payment Type</th>
+                        <th>Status</th>
+                        <th>Records</th>
+                        <th>References</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in recent_jobs %}
+                    <tr>
+                        <td><span style="color:var(--text-muted)">#{{ job.id }}</span></td>
+                        <td>
+                            <span style="background:#eff6ff;color:var(--accent);padding:2px 9px;border-radius:5px;font-size:12px;font-weight:600">
+                                {{ job.get_payment_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if job.status == "SUCCESS" %}
+                                <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> Success</span>
+                            {% elif job.status == "FAILED" %}
+                                <span class="badge-status badge-danger"><i class="fas fa-times-circle"></i> Failed</span>
+                            {% else %}
+                                <span class="badge-status badge-pending"><i class="fas fa-spinner fa-pulse"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ job.total_records }}</td>
+                        <td style="font-size:11.5px;font-family:monospace;color:var(--text-muted)">
+                            {% if job.reference_range %}{{ job.reference_range }}{% else %}—{% endif %}
+                        </td>
+                        <td style="color:var(--text-muted)">{{ job.created_at|date:"d M Y H:i" }}</td>
+                        <td>
+                            {% if job.generated_file %}
+                            <!-- Download with dropdown - CSV default -->
+                            <div class="btn-group" style="display:inline-flex;align-items:center;gap:0;">
+                                <a href="{% url 'uploads:download_file' job.id %}?format=csv" class="btn-sm-icon success" title="Download CSV (default)">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button class="btn-sm-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More formats" style="border-left:1px solid var(--border);border-radius:0 6px 6px 0;padding:0 6px;">
+                                    <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" style="min-width:170px;padding:6px 0;font-size:13px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                                    <li><h6 class="dropdown-header" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:6px 16px 4px;">Download as</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=csv" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-csv" style="color:#217346;width:16px;"></i> CSV <span style="margin-left:auto;font-size:9px;color:var(--text-muted);background:#f3f4f6;padding:0 8px;border-radius:10px;">default</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=txt" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-alt" style="color:#6b7280;width:16px;"></i> TXT
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=xlsx" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-excel" style="color:#217346;width:16px;"></i> Excel (.xlsx)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            <button class="btn-sm-icon" title="View Details" onclick="loadDetail({{ job.id }})"><i class="fas fa-eye"></i></button>
+                            {% if job.error_message %}
+                            <button class="btn-sm-icon danger" title="View Error" onclick="showError('{{ job.id }}', '{{ job.error_message|escapejs }}')" ><i class="fas fa-exclamation-triangle"></i></button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5" style="color:var(--text-muted)">
+                            <i class="fas fa-inbox fa-2x d-block mb-3" style="opacity:0.3"></i>
+                            No jobs yet — <button class="btn-primary-custom" onclick="showPanel('upload')" style="padding:5px 14px;font-size:12px;display:inline-flex">upload your first file</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PANEL 2: UPLOAD (WITH TEMPLATE DOWNLOADS)
+════════════════════════════════════════ -->
+<div class="panel" id="panel-upload">
+    <div class="row g-4">
+
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-upload me-2" style="color:var(--accent)"></i>Upload Payment File</h5>
+                </div>
+                <div style="padding:20px">
+                    <form method="post" enctype="multipart/form-data" id="uploadForm" novalidate>
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label" for="id_payment_type">Payment Type</label>
+                            {{ form.payment_type }}
+                            {% if form.payment_type.errors %}
+                            <div class="error-text">{{ form.payment_type.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label" for="id_excel_file">Excel File</label>
+
+                            <!-- Hidden file input -->
+                            <input type="file" 
+                                   name="excel_file" 
+                                   id="id_excel_file" 
+                                   accept=".xlsx,.xls" 
+                                   style="display:none">
+
+                            <div class="upload-drop" id="uploadArea" role="button" tabindex="0" aria-label="Upload Excel file">
+                                <div class="drop-icon" id="dropIcon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <p id="dropText">Click to browse or drag &amp; drop</p>
+                                <small>.xlsx or .xls &nbsp;·&nbsp; Max 10MB</small>
+                            </div>
+
+                            <!-- Validation feedback -->
+                            <div id="fileFeedback" style="display:none;margin-top:8px;font-size:13px;font-weight:600;padding:8px 12px;border-radius:8px;">
+                                <i id="fileIcon" class="fas fa-check-circle"></i> <span id="fileMsg"></span>
+                            </div>
+
+                            <!-- Template mismatch warning -->
+                            <div id="templateWarning" style="display:none;margin-top:8px;font-size:12.5px;padding:10px 14px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;color:#92400e">
+                                <div style="font-weight:700;margin-bottom:4px"><i class="fas fa-exclamation-triangle me-1"></i> Wrong template detected</div>
+                                <div id="templateWarningMsg"></div>
+                                <div id="missingColsList" style="margin-top:6px;font-size:12px;opacity:0.85"></div>
+                            </div>
+
+                            {% if form.excel_file.errors %}
+                            <div class="error-text">{{ form.excel_file.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div style="display:flex;gap:10px">
+                            <button type="submit" class="btn-primary-custom" id="submitBtn" style="justify-content:center;flex:1">
+                                <i class="fas fa-sync-alt"></i> Process File
+                            </button>
+                            <button type="button" id="resetFormBtn" onclick="resetUploadForm()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;color:var(--text-muted);font-size:13.5px;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:background 0.15s,color 0.15s" onmouseover="this.style.background='#f1f5f9';this.style.color='var(--text-primary)'" onmouseout="this.style.background='white';this.style.color='var(--text-muted)'">
+                                <i class="fas fa-undo-alt"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+         
+            <!-- Template Download Cards -->
+            <div class="card mb-4">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-download me-2" style="color:var(--accent)"></i>Download Templates</h5>
+                </div>
+                <div style="padding:16px 20px">
+                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+                        Download a blank template, fill it with your data, then upload it for conversion.
+                    </p>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                        {% for key, config in payment_types.items %}
+                        <a href="{% url 'uploads:download_template' key %}" 
+                           class="template-download-btn {% if not template_status|get_item:key %}disabled-template{% endif %}"
+                           style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;text-decoration:none;color:var(--text-main);font-size:12.5px;font-weight:500;transition:all 0.15s;background:white"
+                           onmouseover="this.style.borderColor='var(--accent)';this.style.background='#eff6ff'"
+                           onmouseout="this.style.borderColor='var(--border)';this.style.background='white'">
+                            <i class="fas fa-file-excel" style="color:#217346;font-size:16px"></i>
+                            <span>{{ config.name }}</span>
+                            {% if template_status|get_item:key %}
+                                <i class="fas fa-download" style="margin-left:auto;color:var(--text-muted);font-size:11px"></i>
+                            {% else %}
+                                <span style="margin-left:auto;font-size:9px;color:#ef4444;background:#fee2e2;padding:2px 6px;border-radius:4px;">No template</span>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    
+                    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+                        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)">
+                            <i class="fas fa-info-circle" style="color:var(--accent)"></i>
+                            <span>Templates are managed by administrators and include dropdown validations.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-lightbulb me-2" style="color:var(--warning)"></i>How It Works</h5>
+                </div>
+                <div style="padding:16px 20px;font-size:13px;color:var(--text-muted);line-height:1.8">
+                    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+                        <span style="background:var(--accent);color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">1</span>
+                        <span>Download the template for your payment type</span>
+                    </div>
+                    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+                        <span style="background:var(--accent);color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">2</span>
+                        <span>Fill in your data (don't modify headers)</span>
+                    </div>
+                    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
+                        <span style="background:var(--accent);color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">3</span>
+                        <span>Upload the completed Excel file</span>
+                    </div>
+                    <div style="display:flex;gap:12px;align-items:flex-start">
+                        <span style="background:var(--accent);color:white;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">4</span>
+                        <span>Download the converted CSV file</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PANEL 3: HISTORY (WITH CSV DEFAULT)
+════════════════════════════════════════ -->
+<div class="panel" id="panel-history">
+    <div class="card">
+        <div class="card-header-custom">
+            <h5><i class="fas fa-history me-2" style="color:var(--accent)"></i>Processing History</h5>
+            <button class="btn-primary-custom" onclick="showPanel('upload')" style="padding:6px 14px;font-size:12px">
+                <i class="fas fa-plus"></i> New Upload
+            </button>
+        </div>
+
+        <!-- Filter bar -->
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap">
+            <select class="form-select" id="histStatusFilter" style="width:auto;min-width:140px;font-size:13px;padding:7px 10px">
+                <option value="">All Status</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select class="form-select" id="histPaymentFilter" style="width:auto;min-width:170px;font-size:13px;padding:7px 10px">
+                <option value="">All Types</option>
+                {% for key, config in payment_types.items %}
+                <option value="{{ key }}" {% if payment_filter == key %}selected{% endif %}>{{ config.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" class="form-control" id="histSearch" placeholder="Search..." value="{{ search_query }}" style="width:200px;font-size:13px;padding:7px 10px">
+            <button onclick="histApplyFilters()" class="btn-primary-custom" style="padding:7px 14px;font-size:13px">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+            <button onclick="histReset()" style="padding:7px 14px;font-size:13px;border-radius:8px;border:1px solid var(--border);background:white;cursor:pointer;color:var(--text-muted)">
+                <i class="fas fa-undo-alt"></i> Reset
+            </button>
+        </div>
+
+        <div style="overflow-x:auto">
+            <table class="table mb-0" id="histTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Payment Type</th>
+                        <th>Status</th>
+                        <th>Records</th>
+                        <th>References</th>
+                        <th>Uploaded By</th>
+                        <th>Created</th>
+                        <th>Completed</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in all_jobs %}
+                    <tr
+                        data-status="{{ job.status }}"
+                        data-type="{{ job.payment_type }}"
+                        data-search="{{ job.get_payment_type_display|lower }} {{ job.uploaded_by|default:'' }}">
+                        <td><span style="color:var(--text-muted)">#{{ job.id }}</span></td>
+                        <td>
+                            <span style="background:#eff6ff;color:var(--accent);padding:2px 9px;border-radius:5px;font-size:12px;font-weight:600">
+                                {{ job.get_payment_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if job.status == "SUCCESS" %}
+                                <span class="badge-status badge-success"><i class="fas fa-check-circle"></i> Success</span>
+                            {% elif job.status == "FAILED" %}
+                                <span class="badge-status badge-danger"><i class="fas fa-times-circle"></i> Failed</span>
+                            {% else %}
+                                <span class="badge-status badge-pending"><i class="fas fa-spinner fa-pulse"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ job.total_records }}</td>
+                        <td style="font-size:11.5px;font-family:monospace;color:var(--text-muted)">
+                            {% if job.reference_range %}{{ job.reference_range }}{% else %}—{% endif %}
+                        </td>
+                        <td style="color:var(--text-muted)">{{ job.uploaded_by|default:"—" }}</td>
+                        <td style="color:var(--text-muted)">{{ job.created_at|date:"d M Y H:i" }}</td>
+                        <td style="color:var(--text-muted)">{{ job.completed_at|date:"d M Y H:i"|default:"—" }}</td>
+                        <td>
+                            {% if job.generated_file %}
+                            <!-- Download with dropdown - CSV default -->
+                            <div class="btn-group" style="display:inline-flex;align-items:center;gap:0;">
+                                <a href="{% url 'uploads:download_file' job.id %}?format=csv" class="btn-sm-icon success" title="Download CSV (default)">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button class="btn-sm-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More formats" style="border-left:1px solid var(--border);border-radius:0 6px 6px 0;padding:0 6px;">
+                                    <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" style="min-width:170px;padding:6px 0;font-size:13px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                                    <li><h6 class="dropdown-header" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:6px 16px 4px;">Download as</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=csv" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-csv" style="color:#217346;width:16px;"></i> CSV <span style="margin-left:auto;font-size:9px;color:var(--text-muted);background:#f3f4f6;padding:0 8px;border-radius:10px;">default</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=txt" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-alt" style="color:#6b7280;width:16px;"></i> TXT
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'uploads:download_file' job.id %}?format=xlsx" style="display:flex;align-items:center;gap:10px;padding:7px 16px;">
+                                            <i class="fas fa-file-excel" style="color:#217346;width:16px;"></i> Excel (.xlsx)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            <button class="btn-sm-icon" title="View Details" onclick="loadDetail({{ job.id }})"><i class="fas fa-eye"></i></button>
+                            {% if job.error_message %}
+                            <button class="btn-sm-icon danger" title="View Error" onclick="showError('{{ job.id }}', '{{ job.error_message|escapejs }}')"><i class="fas fa-exclamation-triangle"></i></button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5" style="color:var(--text-muted)">
+                            <i class="fas fa-inbox fa-2x d-block mb-3" style="opacity:0.3"></i>
+                            No jobs found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     PANEL 4: JOB DETAIL
+════════════════════════════════════════ -->
+<div class="panel" id="panel-detail">
+    <div style="margin-bottom:14px">
+        <button onclick="showPanel('history')" style="background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer;font-weight:600;padding:0">
+            <i class="fas fa-arrow-left me-1"></i> Back to History
+        </button>
+    </div>
+
+    <div id="detail-loading" style="text-align:center;padding:60px 0;color:var(--text-muted);display:none">
+        <i class="fas fa-spinner fa-pulse fa-2x mb-3 d-block"></i>
+        Loading job details…
+    </div>
+
+    <div id="detail-content">
+        <!-- Populated via JS -->
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     ERROR MODAL
+════════════════════════════════════════ -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--danger);color:white;border-radius:14px 14px 0 0">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Error — Job #<span id="errorJobId"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="errorText" style="white-space:pre-wrap;font-size:13px;color:var(--danger);background:#fef2f2;padding:14px;border-radius:8px;border:1px solid #fecaca;margin:0"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<!-- SheetJS for client-side Excel header reading (template validation) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// @ts-nocheck  ← suppresses VS Code JS errors caused by Django template tags
+//               These are rendered server-side before the browser sees this script.
+
+// ── Upload panel JS ──
+const uploadArea      = document.getElementById('uploadArea');
+const fileInput       = document.getElementById('id_excel_file');
+const feedback        = document.getElementById('fileFeedback');
+const fileIconEl      = document.getElementById('fileIcon');
+const fileMsg         = document.getElementById('fileMsg');
+const submitBtn       = document.getElementById('submitBtn');
+const templateWarning = document.getElementById('templateWarning');
+const templateWarnMsg = document.getElementById('templateWarningMsg');
+const missingColsList = document.getElementById('missingColsList');
+const paymentTypeEl   = document.getElementById('id_payment_type');
+
+const ALLOWED_EXT = ['.xlsx', '.xls'];
+const MAX_SIZE_MB = 10;
+
+// ── Required columns per payment type ──
+const TEMPLATE_COLUMNS = {
+    salary: {
+        label: 'Salary Payment',
+        required: ['Trans Serial','Vote Num','Currency','Debit Account Num','Bank Name',
+                   'Funding TRF Num','Credit Account Num','Credit Account Name',
+                   'Payee BIC','Cost Center','Description','Amount','Value Date']
+    },
+    supplier: {
+        label: 'Supplier Payment',
+        required: ['Currency','Debit Account Num','Debit Account Name','Payment Amount',
+                   'Payee Details','Invoice Num','Payee BIC','Credit Account Num',
+                   'Cost Center','Description']
+    },
+    remittancePRN: {
+        label: 'Remittance PRN',
+        required: ['Debit Account Num','Debit Account Name','Currency','Credit Account Num',
+                   'Payment Amount','Creditor Name','Payment Date','Date Created',
+                   'Cost Centre','PRN']
+    },
+    remittanceTR: {
+        label: 'Remittance TR',
+        required: ['Debit Account Num','Debit Account Name','Currency','Credit Account Num',
+                   'Payment Amount','Creditor Name','Payment Date','Date created','Cost Centre']
+    },
+    foreign: {
+        label: 'Foreign Payment',
+        required: ['Trans Serial','Currency','Debit Account','Account Name','Amount',
+                   'Amount in words','Payee Details1','Payee Details2','Invoice Number',
+                   'Bank Branch Code','Payee BIC','Credit Account','Cost Center',
+                   'Approval Date','Surname','First Name','Sector Code',
+                   'Industrial Class','BOP Category']
+    }
+};
+
+let templateValid = null;
+
+function setDropZoneState(state, filename) {
+    const dropText = document.getElementById('dropText');
+    const dropIcon = document.getElementById('dropIcon');
+    if (!dropText || !dropIcon) return;
+    if (state === 'selected') {
+        dropIcon.innerHTML = '<i class="fas fa-file-excel" style="color:#10b981"></i>';
+        dropText.innerHTML = `<strong style="color:var(--text-primary)">${filename}</strong> <span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px">Click to change file</span>`;
+        uploadArea.style.borderColor = '#10b981';
+        uploadArea.style.background = '#f0fdf4';
+    } else if (state === 'error') {
+        dropIcon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>';
+        dropText.innerHTML = `<strong style="color:var(--danger)">Wrong template</strong> <span style="font-size:11px;color:var(--text-muted);display:block;margin-top:2px">Click to choose a different file</span>`;
+        uploadArea.style.borderColor = 'var(--danger)';
+        uploadArea.style.background = '#fef2f2';
+    } else {
+        dropIcon.innerHTML = '<i class="fas fa-cloud-upload-alt"></i>';
+        dropText.innerHTML = 'Click to browse or drag &amp; drop';
+        uploadArea.style.borderColor = '';
+        uploadArea.style.background = '';
+    }
+}
+
+function setFeedback(type, iconClass, message) {
+    if (!feedback) return;
+    feedback.style.display = 'block';
+    feedback.style.background = type === 'success' ? '#f0fdf4' : '#fef2f2';
+    feedback.style.color      = type === 'success' ? 'var(--success)' : 'var(--danger)';
+    feedback.style.border     = type === 'success' ? '1px solid #bbf7d0' : '1px solid #fecaca';
+    fileIconEl.className = `fas ${iconClass}`;
+    fileMsg.textContent  = message;
+}
+
+function clearFeedback() {
+    if (feedback) {
+        feedback.style.display = 'none';
+        fileMsg.textContent = '';
+    }
+    setDropZoneState('idle');
+}
+
+function clearTemplateWarning() {
+    if (templateWarning) {
+        templateWarning.style.display = 'none';
+        templateValid = null;
+    }
+}
+
+function resetUploadForm() {
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    if (paymentTypeEl) {
+        paymentTypeEl.selectedIndex = 0;
+    }
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Process File';
+    }
+    clearFeedback();
+    clearTemplateWarning();
+}
+
+function showTemplateWarning(paymentLabel, missing) {
+    if (!templateWarning) return;
+    templateWarning.style.display = 'block';
+    templateWarnMsg.textContent =
+        `This file doesn't look like a "${paymentLabel}" template. ` +
+        `${missing.length} required column${missing.length > 1 ? 's are' : ' is'} missing.`;
+    missingColsList.innerHTML = missing.map(c =>
+        `<span style="display:inline-block;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:1px 7px;margin:2px 3px 2px 0;font-size:11.5px">${c}</span>`
+    ).join('');
+}
+
+function readExcelColumns(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const data  = new Uint8Array(e.target.result);
+                const wb    = XLSX.read(data, { type: 'array', sheetRows: 2 });
+                const ws    = wb.Sheets[wb.SheetNames[0]];
+                const rows  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                const cols  = (rows[0] || []).map(c => String(c).replace(/\t/g, '').trim().replace(/\s+/g, ' '));
+                resolve(cols);
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = () => reject(new Error('Could not read file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+async function validateFile(file) {
+    clearTemplateWarning();
+    if (!file) {
+        clearFeedback();
+        submitBtn.disabled = false;
+        return false;
+    }
+
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+    if (!ALLOWED_EXT.includes(ext)) {
+        setFeedback('error', 'fa-times-circle',
+            `"${file.name}" is not a valid file. Please upload an Excel file (.xlsx or .xls).`);
+        submitBtn.disabled = true;
+        fileInput.value = '';
+        return false;
+    }
+
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        setFeedback('error', 'fa-times-circle',
+            `"${file.name}" is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size is ${MAX_SIZE_MB} MB.`);
+        submitBtn.disabled = true;
+        fileInput.value = '';
+        return false;
+    }
+
+    setFeedback('success', 'fa-check-circle', file.name);
+    setDropZoneState('selected', file.name);
+    submitBtn.disabled = false;
+
+    const paymentType = paymentTypeEl ? paymentTypeEl.value : null;
+    const tpl = paymentType ? TEMPLATE_COLUMNS[paymentType] : null;
+    if (tpl && typeof XLSX !== 'undefined') {
+        try {
+            setFeedback('success', 'fa-spinner fa-pulse', `Reading "${file.name}"…`);
+            const cols = await readExcelColumns(file);
+            const colsLower = cols.map(c => c.toLowerCase());
+            const missing   = tpl.required.filter(req =>
+                !colsLower.includes(req.toLowerCase())
+            );
+
+            if (missing.length > 0) {
+                templateValid = false;
+                showTemplateWarning(tpl.label, missing);
+                setFeedback('error', 'fa-exclamation-triangle',
+                    `"${file.name}" — template mismatch (see warning below)`);
+                setDropZoneState('error', file.name);
+                submitBtn.disabled = true;
+            } else {
+                templateValid = true;
+                setFeedback('success', 'fa-check-circle',
+                    `"${file.name}" — columns verified ✓`);
+                setDropZoneState('selected', file.name);
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            templateValid = null;
+            setFeedback('success', 'fa-check-circle', file.name);
+            console.warn('Could not read Excel headers:', err);
+        }
+    }
+
+    return true;
+}
+
+if (paymentTypeEl) {
+    paymentTypeEl.addEventListener('change', () => {
+        const currentFile = fileInput.files[0];
+        if (currentFile) {
+            validateFile(currentFile);
+        }
+    });
+}
+
+if (uploadArea && fileInput) {
+    uploadArea.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.click();
+    });
+
+    uploadArea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInput.click();
+        }
+    });
+
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('dragover');
+        
+        const droppedFile = e.dataTransfer.files[0];
+        if (droppedFile) {
+            const dt = new DataTransfer();
+            dt.items.add(droppedFile);
+            fileInput.files = dt.files;
+            validateFile(droppedFile);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            validateFile(file);
+        } else {
+            clearFeedback();
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+const uploadForm = document.getElementById('uploadForm');
+if (uploadForm && fileInput) {
+    uploadForm.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+
+        if (!file) {
+            e.preventDefault();
+            setFeedback('error', 'fa-times-circle', 'Please select an Excel file before submitting.');
+            return;
+        }
+
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (!ALLOWED_EXT.includes(ext)) {
+            e.preventDefault();
+            setFeedback('error', 'fa-times-circle',
+                `"${file.name}" is not a valid file. Please upload an .xlsx or .xls file.`);
+            return;
+        }
+
+        if (templateValid === false) {
+            e.preventDefault();
+            if (templateWarning) {
+                templateWarning.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Processing…';
+    });
+}
+
+// ── Error modal ──
+function showError(id, msg) {
+    document.getElementById('errorJobId').textContent = id;
+    document.getElementById('errorText').textContent  = msg;
+    new bootstrap.Modal(document.getElementById('errorModal')).show();
+}
+
+// ── History inline filters ──
+function histApplyFilters() {
+    const statusF  = document.getElementById('histStatusFilter').value.toLowerCase();
+    const paymentF = document.getElementById('histPaymentFilter').value.toLowerCase();
+    const searchF  = document.getElementById('histSearch').value.toLowerCase();
+
+    document.querySelectorAll('#histTable tbody tr[data-status]').forEach(row => {
+        const matchStatus  = !statusF  || row.dataset.status.toLowerCase()  === statusF;
+        const matchPayment = !paymentF || row.dataset.type.toLowerCase()     === paymentF;
+        const matchSearch  = !searchF  || row.dataset.search.includes(searchF);
+        row.style.display = (matchStatus && matchPayment && matchSearch) ? '' : 'none';
+    });
+}
+
+function histReset() {
+    document.getElementById('histStatusFilter').value  = '';
+    document.getElementById('histPaymentFilter').value = '';
+    document.getElementById('histSearch').value        = '';
+    histApplyFilters();
+}
+
+// ── Job detail loader ──
+const JOB_DATA = {
+    {% for job in all_jobs %}
+    "{{ job.id }}": {
+        id: {{ job.id }},
+        type: "{{ job.get_payment_type_display|escapejs }}",
+        status: "{{ job.status|escapejs }}",
+        records: {{ job.total_records }},
+        reference_range: "{{ job.reference_range|escapejs }}",
+        user: "{{ job.uploaded_by|default:'—'|escapejs }}",
+        created: "{{ job.created_at|date:'d M Y H:i:s'|escapejs }}",
+        completed: "{{ job.completed_at|date:'d M Y H:i:s'|default:'—'|escapejs }}",
+        error: "{{ job.error_message|escapejs }}",
+        download: "{% if job.generated_file %}{% url 'uploads:download_file' job.id %}{% endif %}",
+        {% if job.preview_data %}
+        preview: {{ job.preview_data|safe }}
+        {% else %}
+        preview: null
+        {% endif %}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+
+function loadDetail(jobId) {
+    showPanel('detail');
+    const job = JOB_DATA[String(jobId)];
+
+    if (!job) {
+        document.getElementById('detail-content').innerHTML = '<div class="alert alert-danger">Job not found.</div>';
+        return;
+    }
+
+    const statusBadge =
+        job.status === 'SUCCESS' ? '<span class="badge-status badge-success"><i class="fas fa-check-circle"></i> Success</span>' :
+        job.status === 'FAILED'  ? '<span class="badge-status badge-danger"><i class="fas fa-times-circle"></i> Failed</span>' :
+                                   '<span class="badge-status badge-pending"><i class="fas fa-spinner fa-pulse"></i> Pending</span>';
+
+    const downloadSection = job.download ? `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">
+            <span style="font-size:13px;color:var(--text-muted);font-weight:500;">Download as:</span>
+            <a href="${job.download}?format=csv" class="btn-primary-custom" style="text-decoration:none;padding:6px 14px;font-size:12px;background:#217346;">
+                <i class="fas fa-file-csv"></i> CSV
+            </a>
+            <a href="${job.download}?format=txt" class="btn-primary-custom" style="text-decoration:none;padding:6px 14px;font-size:12px;background:#6b7280;">
+                <i class="fas fa-file-alt"></i> TXT
+            </a>
+            <a href="${job.download}?format=xlsx" class="btn-primary-custom" style="text-decoration:none;padding:6px 14px;font-size:12px;background:#1a6e3a;">
+                <i class="fas fa-file-excel"></i> Excel
+            </a>
+            <span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(default: CSV)</span>
+        </div>
+    ` : '';
+
+    const errorBlock = job.error
+        ? `<div class="alert alert-danger mt-3"><strong><i class="fas fa-exclamation-triangle me-2"></i>Error</strong><pre style="white-space:pre-wrap;margin:8px 0 0;font-size:12.5px">${job.error}</pre></div>`
+        : '';
+
+    let previewBlock = '';
+    if (job.preview && job.preview.columns && job.preview.rows && job.preview.rows.length > 0) {
+
+        let rows    = job.preview.rows.map(r => ({ ...r }));
+        let columns = [...job.preview.columns];
+
+        const refColIdx = columns.findIndex(c => c.toLowerCase().includes('reference'));
+        const refCol    = refColIdx !== -1 ? columns[refColIdx] : null;
+
+        if (job.reference_range && refCol) {
+            const firstRef    = job.reference_range.split(/\s*[–\-]\s*/)[0].trim();
+            const prefixMatch = firstRef.match(/^([A-Z]+)(\d+)$/);
+            if (prefixMatch) {
+                const refPrefix = prefixMatch[1];
+                const firstNum  = parseInt(prefixMatch[2], 10);
+                rows = rows.map((row, i) => {
+                    const val = String(row[refCol] ?? '').trim();
+                    if (!val) {
+                        row[refCol] = `${refPrefix}${String(firstNum + i).padStart(8, '0')}`;
+                    }
+                    return row;
+                });
+            }
+        }
+
+        if (refCol && columns[0] !== refCol) {
+            columns = [refCol, ...columns.filter(c => c !== refCol)];
+        }
+
+        const headerCells = columns.map(c => `<th style="white-space:nowrap">${c}</th>`).join('');
+        const bodyRows = rows.map(row => {
+            const cells = columns.map(c => {
+                const val = String(row[c] ?? '').trim();
+                const display = val.substring(0, 40) || '<span style="color:#cbd5e1">—</span>';
+                return `<td>${display}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        previewBlock = `
+            <div class="card mt-4">
+                <div class="card-header-custom">
+                    <h5><i class="fas fa-table me-2" style="color:var(--accent)"></i>Data Preview — first 10 rows</h5>
+                    ${job.preview.total_rows > 10 ? `<span style="font-size:12px;color:var(--text-muted)">${job.preview.total_rows} total rows</span>` : ''}
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="table mb-0" style="font-size:12px">
+                        <thead><tr>${headerCells}</tr></thead>
+                        <tbody>${bodyRows}</tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    document.getElementById('detail-content').innerHTML = `
+        <div class="card">
+            <div class="card-header-custom">
+                <h5><i class="fas fa-file-alt me-2" style="color:var(--accent)"></i>Job #${job.id}</h5>
+            </div>
+            <div style="padding:20px">
+                <div class="info-row"><span class="info-label">Payment Type</span><span class="info-val">${job.type}</span></div>
+                <div class="info-row"><span class="info-label">Status</span><span class="info-val">${statusBadge}</span></div>
+                <div class="info-row"><span class="info-label">Total Records</span><span class="info-val">${job.records}</span></div>
+                ${job.reference_range ? `<div class="info-row"><span class="info-label">References</span><span class="info-val" style="font-family:monospace;font-size:13px">${job.reference_range}</span></div>` : ''}
+                <div class="info-row"><span class="info-label">Uploaded By</span><span class="info-val">${job.user}</span></div>
+                <div class="info-row"><span class="info-label">Created At</span><span class="info-val">${job.created}</span></div>
+                <div class="info-row"><span class="info-label">Completed At</span><span class="info-val">${job.completed}</span></div>
+                ${downloadSection ? `<div class="info-row"><span class="info-label">Download</span><span class="info-val">${downloadSection}</span></div>` : ''}
+            </div>
+            ${errorBlock}
+        </div>
+        ${previewBlock}`;
+}
+
+// ── Auto-open upload panel after a POST ──
+{% if form.errors %}
+document.addEventListener('DOMContentLoaded', function() {
+    showPanel('upload');
+});
+{% endif %}
+
+// ── Live stats polling ──
+// Polls every 60 s, but only when:
+//   (a) the browser tab is visible, AND
+//   (b) the dashboard panel is the active panel.
+// This prevents unnecessary server load from idle or background tabs.
+(function() {
+    const STATS_URL = "{% url 'uploads:stats_api' %}";
+    const POLL_MS   = 60000; // 60 s — stats don't need to be real-time
+
+    const elMap = {
+        total_jobs:      document.getElementById('stat-total-jobs'),
+        successful:      document.getElementById('stat-successful'),
+        failed:          document.getElementById('stat-failed'),
+        total_processed: document.getElementById('stat-total-processed'),
+    };
+
+    function animateUpdate(el, newVal) {
+        if (!el || el.textContent === String(newVal)) return;
+        el.textContent = newVal;
+        el.style.transition = 'opacity 0.15s';
+        el.style.opacity = '0.3';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                el.style.opacity = '1';
+            });
+        });
+    }
+
+    function isDashboardVisible() {
+        // Skip if the browser tab is hidden
+        if (document.hidden) return false;
+        // Skip if the dashboard panel is not the active one
+        const panel = document.getElementById('panel-dashboard');
+        return panel && panel.classList.contains('active');
+    }
+
+    async function fetchStats() {
+        if (!isDashboardVisible()) return;
+        try {
+            const res  = await fetch(STATS_URL, { credentials: 'same-origin' });
+            if (!res.ok) return;
+            const data = await res.json();
+            animateUpdate(elMap.total_jobs,      data.total_jobs);
+            animateUpdate(elMap.successful,      data.successful);
+            animateUpdate(elMap.failed,          data.failed);
+            animateUpdate(elMap.total_processed, data.total_processed);
+        } catch (_) { /* silently ignore network errors */ }
+    }
+
+    // Use setInterval (cleaner than recursive setTimeout).
+    // The isDashboardVisible() guard inside fetchStats() means the interval
+    // running in the background costs nothing — it just returns immediately.
+    setInterval(fetchStats, POLL_MS);
+
+    // Re-fetch immediately when the user switches back to this tab
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) fetchStats();
+    });
+})();
+</script>
+{% endblock %}
