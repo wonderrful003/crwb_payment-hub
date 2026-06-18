@@ -119,7 +119,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
+
 STATIC_URL = "static/"
+
+# ADD THIS LINE - tells Django where to find your static files
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+# For production (collectstatic)
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 
 # Media files (user-uploaded Excel files & generated CSV files)
 MEDIA_URL = "/media/"
