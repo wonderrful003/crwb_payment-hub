@@ -289,7 +289,6 @@ All views require login (`@login_required`). Authentication is handled by a sepa
 3. Commit your changes (`git commit -m 'Add my feature'`)
 4. Push to the branch (`git push origin feature/my-feature`)
 5. Open a pull request
-
 ---
 
 ## License
