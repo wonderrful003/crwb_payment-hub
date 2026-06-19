@@ -31,7 +31,7 @@ def get_next_reference(prefix):
 # OBDX FILENAME BUILDER
 #
 # Required pattern (per CRWB/OBDX naming spec):
-#   {PREFIX}_{PARTYID}_{DDMMYYYY}{HHMMSS}.txt
+#   {PREFIX}_{PARTYID}_{DDMMYYYY}.txt
 #
 # PARTYID = first 9 digits of the originating (debit) account number
 #           used for that file's transactions.
@@ -47,14 +47,11 @@ def build_party_id(account_number):
 
 def build_export_filename(prefix, debit_account_num, extension="txt"):
     party_id = build_party_id(debit_account_num)
-
     now = timezone.now()
     date_part = now.strftime("%d.%m.%Y")
     time_suffix = now.strftime("%H%M%S")
-
     base_name = f"{prefix}_{party_id}_{date_part}{time_suffix}"
     base_name = base_name[:50]  # enforce 50-character cap from the spec
-
     return f"{base_name}.{extension}"
 
 
@@ -67,6 +64,19 @@ def format_amount(value):
         return f"{float(value):.2f}"
     except Exception:
         return "0.00"
+
+
+def format_date(value):
+    """
+    Parse any date value and return DD.MM.YYYY string per OBDX spec.
+    Returns empty string if value is null/unparseable.
+    """
+    if pd.isna(value) or str(value).strip() == "":
+        return ""
+    try:
+        return pd.to_datetime(value, errors="raise").strftime("%d.%m.%Y")
+    except Exception:
+        return str(value).strip()
 
 
 def build_header(prefix, currency, total_amount, count):
@@ -135,7 +145,7 @@ def validate_required_fields(df, required_fields):
 # =====================================================
 
 def convert_salary(df):
-    df = clean_columns(df)  # strips leading/trailing spaces from column names
+    df = clean_columns(df)
 
     required_fields = [
         "Trans Serial",
@@ -145,7 +155,7 @@ def convert_salary(df):
         "Bank Name",
         "Funding TRF Num",
         "Credit Account Num",
-        "Credit Account Name",   # template has leading space — clean_columns fixes it
+        "Credit Account Name",
         "Payee BIC",
         "Cost Center",
         "Description",
@@ -160,7 +170,8 @@ def convert_salary(df):
     if (df["Amount"] <= 0).any():
         raise ValueError("Invalid Amount values — all amounts must be greater than zero")
 
-    df["Value Date"] = pd.to_datetime(df["Value Date"], errors="raise").dt.strftime("%d.%m.%Y")
+    # Format Value Date to DD.MM.YYYY per spec
+    df["Value Date"] = df["Value Date"].apply(format_date)
 
     total_amount = df["Amount"].sum()
     first = df.iloc[0]
@@ -237,7 +248,7 @@ def convert_supplier(df):
     for i, r in df.iterrows():
         reference = get_next_reference("SUP")
         references.append(reference)
-        serial    = str(i + 1).zfill(4)
+        serial = str(i + 1).zfill(4)
         line = [
             "1",
             serial,
@@ -253,7 +264,7 @@ def convert_supplier(df):
             r.get("Payee BIC", ""),
             r.get("Credit Account Num", ""),
             r.get("Cost Center", ""),
-            r.get("Date", ""),
+            format_date(r.get("Date", "")),   # ← DD.MM.YYYY
             reference,
             r.get("Description", ""),
         ]
@@ -297,7 +308,7 @@ def convert_remittancePRN(df):
     for i, r in df.iterrows():
         reference = get_next_reference("PRN")
         references.append(reference)
-        serial    = str(i + 1).zfill(4)
+        serial = str(i + 1).zfill(4)
         line = [
             "2",
             serial,
@@ -308,8 +319,8 @@ def convert_remittancePRN(df):
             r.get("Currency", ""),
             format_amount(r.get("Payment Amount", 0)),
             r.get("Creditor Name", ""),
-            r.get("Payment Date", ""),
-            r.get("Date Created", ""),
+            format_date(r.get("Payment Date", "")),   # ← DD.MM.YYYY
+            format_date(r.get("Date Created", "")),   # ← DD.MM.YYYY
             reference,
             r.get("Cost Centre", ""),
             r.get("PRN", ""),
@@ -322,9 +333,11 @@ def convert_remittancePRN(df):
 # =====================================================
 # REMITTANCE TR
 # Template columns: Trans Serial, Debit Account Num, Debit Account Name,
-#   Currency, Credit Account Num, Payment Amount, Creditor Name,
-#   Payment Date, Date created, Reference Num, Cost Centre
+#   Debit Currency, Credit Account Num, Credit Currency, Payment Amount,
+#   Creditor Name, Payment Date, Date created, Reference Num, Cost Centre
 # Note: "Reference Num" column exists in template but is auto-generated — excluded.
+# Debit Currency and Credit Currency are separate to support cross-currency
+# transactions (e.g. MWK debit, USD credit).
 # =====================================================
 
 def convert_remittanceTR(df):
@@ -334,12 +347,13 @@ def convert_remittanceTR(df):
     required_fields = [
         "Debit Account Num",
         "Debit Account Name",
-        "Currency",
+        "Currency",    # ← split from single "Currency"
         "Credit Account Num",
+        "Currency",   # ← split from single "Currency"
         "Payment Amount",
         "Creditor Name",
         "Payment Date",
-        "Date created",    # ← lowercase 'c' matches template exactly
+        "Date Created",      # ← uppercase 'C' matches template exactly
         "Cost Centre",
         # "Reference Num" intentionally omitted — auto-generated below
     ]
@@ -353,19 +367,19 @@ def convert_remittanceTR(df):
     for i, r in df.iterrows():
         reference = get_next_reference("TRN")
         references.append(reference)
-        serial    = str(i + 1).zfill(4)
+        serial = str(i + 1).zfill(4)
         line = [
             "2",
             serial,
             r.get("Debit Account Num", ""),
             r.get("Debit Account Name", ""),
-            r.get("Currency", ""),
+            r.get("Debit Currency", ""),            # ← debit currency
             r.get("Credit Account Num", ""),
-            r.get("Currency", ""),
+            r.get("Credit Currency", ""),           # ← credit currency (can differ)
             format_amount(r.get("Payment Amount", 0)),
             r.get("Creditor Name", ""),
-            r.get("Payment Date", ""),
-            r.get("Date created", ""),
+            format_date(r.get("Payment Date", "")),  # ← DD.MM.YYYY
+            format_date(r.get("Date created", "")),  # ← DD.MM.YYYY
             reference,
             r.get("Cost Centre", ""),
         ]
@@ -428,7 +442,7 @@ def convert_foreign(df):
     for i, r in df.iterrows():
         reference = get_next_reference("FRX")
         references.append(reference)
-        serial    = str(i + 1).zfill(4)
+        serial = str(i + 1).zfill(4)
         line = [
             "1",
             serial,
@@ -444,7 +458,7 @@ def convert_foreign(df):
             safe(r, "Payee BIC"),
             safe(r, "Credit Account"),
             safe(r, "Cost Center"),
-            safe(r, "Approval Date"),
+            format_date(r.get("Approval Date", "")),  # ← DD.MM.YYYY
             reference,
             safe(r, "Corresponding Bank"),
             safe(r, "Corresponding Country"),
